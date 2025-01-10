@@ -134,6 +134,18 @@ VOLUME /var/lib/nuxeo
 VOLUME /var/log/nuxeo
 VOLUME /tmp
 
+COPY nuxeo-web-ui-marketplace-3.1.13-SNAPSHOT.zip /tmp/nuxeo-web-ui-marketplace-3.1.13-SNAPSHOT.zip
+COPY nuxeo-keycloak-package-2023.14-SNAPSHOT.zip /tmp/nuxeo-keycloak-package-2023.14-SNAPSHOT.zip
+COPY onlyoffice-nuxeo-package-2.1.0.zip /tmp/onlyoffice-nuxeo-package-2.1.0.zip
+COPY docker-entrypoint.sh /
+COPY --chown=900:0 nuxeo.conf /etc/nuxeo/nuxeo.conf
+COPY mysql-connector-j-8.4.0.jar $NUXEO_HOME/lib/mysql-connector-j-8.4.0.jar
+
+ENV ADMINISTRATORS_MAPPING_PLATFORM_ROLES=ROLE_ADMINISTRATOR,ROLE_PLATFORM_ADMIN
+ENV MEMBERS_MAPPING_PLATFORM_ROLES=ROLE_DATASCIENTIST,ROLE_DATAVIEWER,ROLE_DEVELOPER,ROLE_PARTNER,ROLE_USE
+
+
+
 EXPOSE 8080
 ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["nuxeoctl", "console"]
