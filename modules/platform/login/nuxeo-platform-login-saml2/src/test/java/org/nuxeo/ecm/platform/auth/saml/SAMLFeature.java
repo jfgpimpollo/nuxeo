@@ -23,8 +23,9 @@ import static org.junit.Assert.assertEquals;
 import static org.nuxeo.ecm.platform.auth.saml.SAMLConfiguration.ENTITY_ID;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.StringWriter;
+import java.io.OutputStream;
 import java.net.URI;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -36,6 +37,7 @@ import java.util.zip.InflaterInputStream;
 
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.transform.OutputKeys;
+import javax.xml.transform.TransformerException;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
@@ -55,7 +57,11 @@ import org.nuxeo.runtime.test.runner.Features;
 import org.nuxeo.runtime.test.runner.FeaturesRunner;
 import org.nuxeo.runtime.test.runner.RunnerFeature;
 import org.nuxeo.runtime.test.runner.WithFrameworkProperty;
+import org.opensaml.core.xml.config.XMLObjectProviderRegistrySupport;
+import org.opensaml.core.xml.io.Marshaller;
+import org.opensaml.core.xml.io.MarshallingException;
 import org.opensaml.saml.common.SAMLObject;
+import org.w3c.dom.Node;
 
 import com.google.inject.Binder;
 
@@ -83,7 +89,12 @@ public class SAMLFeature implements RunnerFeature {
 
     @Override
     public void beforeSetup(FeaturesRunner runner, FrameworkMethod method, Object test) throws Exception {
-        String metadata = getClass().getResource("/idp-meta.xml").toURI().getPath();
+        String metadata;
+        if (runner.getFeature(IdpKeyStoreFeature.class) != null) {
+            metadata = getClass().getResource("/idp-meta-with-certificate.xml").toURI().getPath();
+        } else {
+            metadata = getClass().getResource("/idp-meta.xml").toURI().getPath();
+        }
         Map<String, String> params = Map.of("metadata", metadata);
 
         samlAuthenticationProvider = new SAMLAuthenticationProvider();
@@ -122,9 +133,26 @@ public class SAMLFeature implements RunnerFeature {
     }
 
     public static String formatXML(String xml) {
-        try (var is = IOUtils.toInputStream(xml, UTF_8)) {
+        try (var is = IOUtils.toInputStream(xml, UTF_8); var out = new ByteArrayOutputStream()) {
             var document = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(is);
+            formatXML(document, out);
+            return out.toString();
+        } catch (Exception e) {
+            throw new AssertionError("Error occurs when pretty-printing xml:\n" + xml, e);
+        }
+    }
 
+    public static void formatXML(SAMLObject object, OutputStream out) {
+        try {
+            Marshaller marshaller = XMLObjectProviderRegistrySupport.getMarshallerFactory().getMarshaller(object);
+            formatXML(marshaller.marshall(object), out);
+        } catch (MarshallingException e) {
+            throw new AssertionError("Error occurs when marshalling object: " + object, e);
+        }
+    }
+
+    public static void formatXML(Node node, OutputStream out) {
+        try {
             var transformerFactory = TransformerFactory.newInstance();
             var transformer = transformerFactory.newTransformer();
             transformer.setOutputProperty(OutputKeys.ENCODING, "UTF-8");
@@ -132,11 +160,9 @@ public class SAMLFeature implements RunnerFeature {
             transformer.setOutputProperty(OutputKeys.INDENT, "yes");
             transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "2");
 
-            var out = new StringWriter();
-            transformer.transform(new DOMSource(document), new StreamResult(out));
-            return out.toString();
-        } catch (Exception e) {
-            throw new AssertionError("Error occurs when pretty-printing xml:\n" + xml, e);
+            transformer.transform(new DOMSource(node), new StreamResult(out));
+        } catch (TransformerException e) {
+            throw new AssertionError("Error occurs when formatting node: " + node, e);
         }
     }
 

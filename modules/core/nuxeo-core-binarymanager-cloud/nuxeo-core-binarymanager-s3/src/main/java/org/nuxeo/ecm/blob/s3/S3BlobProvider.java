@@ -238,8 +238,12 @@ public class S3BlobProvider extends BlobStoreBlobProvider implements S3ManagedTr
             throws URISyntaxException {
         // split version id if part of file key
         String[] parts = bucketKey.split(String.valueOf(VER_SEP));
-        GeneratePresignedUrlRequest request = new GeneratePresignedUrlRequest(config.bucketName, parts[0],
-                HttpMethod.GET);
+        var method = HttpMethod.GET;
+        // Allow method replacement to HEAD only
+        if (servletRequest != null && "HEAD".equals(servletRequest.getMethod())) {
+            method = HttpMethod.HEAD;
+        }
+        GeneratePresignedUrlRequest request = new GeneratePresignedUrlRequest(config.bucketName, parts[0], method);
         if (parts.length > 1) {
             request.setVersionId(parts[1]);
         }

@@ -6,7 +6,7 @@
   <parent>
     <groupId>org.nuxeo.docker</groupId>
     <artifactId>nuxeo-docker-images</artifactId>
-    <version>2023.19-SNAPSHOT</version>
+    <version>2023.20-SNAPSHOT</version>
   </parent>
 
   <artifactId>nuxeo-docker-image</artifactId>
@@ -68,6 +68,11 @@
                   <platforms>
                     <platform>${docker.platforms}</platform>
                   </platforms>
+                  <secret>
+                    <files>
+                      <nuxeo-public>nuxeo-public.repo</nuxeo-public>
+                    </files>
+                  </secret>
                 </buildx>
               </build>
             </image>

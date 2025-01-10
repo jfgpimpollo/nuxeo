@@ -1136,4 +1136,16 @@ public abstract class AbstractTestCommentManager {
         assertEquals(reply.getId(), reply2.getParentId());
     }
 
+    @Test
+    public void testCreateCommentsOnVersion() {
+        // Create version
+        DocumentRef vRef = session.checkIn(commentedDocModel.getRef(), VersioningOption.MAJOR, null);
+        DocumentModel version = session.getDocument(vRef);
+        // Add 2 comments on the version
+        Comment c1 = commentManager.createComment(session, newComment(version.getId(), "comment1"));
+        Comment c2 = commentManager.createComment(session, newComment(version.getId(), "comment2"));
+        // Assert comments are stored under the same parent
+        assertEquals(c1.getDocument().getParentRef(), c2.getDocument().getParentRef());
+    }
+
 }

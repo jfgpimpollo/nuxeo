@@ -19,6 +19,7 @@
 package org.nuxeo.ecm.core.action.validation;
 
 import static org.nuxeo.ecm.core.action.GarbageCollectOrphanBlobsAction.DRY_RUN_PARAM;
+import static org.nuxeo.ecm.core.action.GarbageCollectOrphanBlobsAction.RECORDS_PARAM;
 
 import java.util.List;
 
@@ -37,7 +38,7 @@ public class GarbageCollectOrphanBlobsValidation extends AbstractBulkActionValid
 
     @Override
     protected List<String> getParametersToValidate() {
-        return List.of(DRY_RUN_PARAM);
+        return List.of(DRY_RUN_PARAM, RECORDS_PARAM);
     }
 
     @Override

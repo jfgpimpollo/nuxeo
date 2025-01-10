@@ -22,6 +22,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
+import static org.nuxeo.ecm.core.action.GarbageCollectOrphanBlobsAction.RECORDS_PARAM;
 import static org.nuxeo.ecm.core.action.GarbageCollectOrphanBlobsAction.RESULT_DELETED_SIZE_KEY;
 import static org.nuxeo.ecm.core.action.GarbageCollectOrphanBlobsAction.RESULT_TOTAL_SIZE_KEY;
 import static org.nuxeo.ecm.core.bulk.message.BulkStatus.State.COMPLETED;
@@ -100,14 +101,14 @@ public class TestS3FullGCOrphanBlobsSharedStorageRecord extends AbstractTestFull
         assertNotNull(blob2);
         S3BlobProvider blobProvider2 = (S3BlobProvider) Framework.getService(BlobManager.class).getBlobProvider(blob2);
         assertTrue(blobProvider2.getKeyStrategy() instanceof KeyStrategyDigest);
-        String blobKey2 = blob2.getKey().substring(blob2.getKey().indexOf(":") + 1);;
+        String blobKey2 = blob2.getKey().substring(blob2.getKey().indexOf(":") + 1);
         assertTrue(blobProvider2.store.exists(blobKey2));
 
         // We are testing record provider
         // blob versioning is enabled and blob key has the ${docId}@{versionId} pattern
         assertTrue(blobKey1.startsWith(blobProvider1.blobProviderId + ":" + doc1.getId() + KeyStrategy.VER_SEP));
 
-        BulkStatus status = triggerAndWaitGC(false);
+        BulkStatus status = triggerAndWaitGC(RECORDS_PARAM);
         assertNotNull(status);
         assertEquals(COMPLETED, status.getState());
         assertEquals(false, status.hasError());

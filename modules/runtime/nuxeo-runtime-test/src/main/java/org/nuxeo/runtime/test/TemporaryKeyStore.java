@@ -63,6 +63,8 @@ public class TemporaryKeyStore extends ExternalResource {
 
     protected Path keyStorePath;
 
+    protected KeyStore keyStore;
+
     protected TemporaryKeyStore(Builder builder) {
         this.keyStoreType = builder.keyStoreType;
         this.keyStorePassword = builder.keyStorePassword;
@@ -97,6 +99,11 @@ public class TemporaryKeyStore extends ExternalResource {
             try (OutputStream out = Files.newOutputStream(keyStorePath)) {
                 keyStore.store(out, keyStorePassword.toCharArray());
             }
+            // re-load keyStore
+            try (var stream = Files.newInputStream(keyStorePath)) {
+                this.keyStore = KeyStore.getInstance(keyStoreType);
+                this.keyStore.load(stream, keyStorePassword.toCharArray());
+            }
         } catch (GeneralSecurityException | IOException e) {
             throw new AssertionError("Unable to build the keyStore", e);
         }
@@ -114,6 +121,13 @@ public class TemporaryKeyStore extends ExternalResource {
 
     public Path getPath() {
         return keyStorePath;
+    }
+
+    /**
+     * @since 2023.19
+     */
+    public KeyStore getKeyStore() {
+        return keyStore;
     }
 
     public KeyStoreEntry<KeyPair> getKeyPair(String alias) {

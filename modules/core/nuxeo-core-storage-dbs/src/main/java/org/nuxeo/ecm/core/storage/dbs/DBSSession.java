@@ -889,6 +889,10 @@ public class DBSSession extends BaseSession {
         sourceState.put(KEY_NAME, name);
         sourceState.put(KEY_PARENT_ID, parentId);
 
+        // pos fixup
+        Long pos = getNextPos(parentId);
+        sourceState.put(KEY_POS, pos);
+
         // materialize ancestors and read ACL, async if needed.
         transaction.updateTreeReadAcls(sourceId);
 

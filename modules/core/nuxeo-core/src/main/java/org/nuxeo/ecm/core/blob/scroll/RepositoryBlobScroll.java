@@ -18,6 +18,8 @@
  */
 package org.nuxeo.ecm.core.blob.scroll;
 
+import static org.nuxeo.ecm.core.action.GarbageCollectOrphanBlobsAction.RECORDS_PARAM;
+
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -76,6 +78,15 @@ public class RepositoryBlobScroll implements Scroll {
                 log.warn("Provider: {} must extend BlobStoreBlobProvider but was {}", () -> providerId,
                         () -> provider.getClass().getCanonicalName());
                 continue;
+            }
+            if (provider.isRecordMode()) {
+                if (request instanceof GenericScrollRequest gsr
+                        && Boolean.TRUE.equals(gsr.getOptions().get(RECORDS_PARAM))) {
+                    log.warn("Record blob provider: {} should not need to be garbage-collected", providerId);
+                } else {
+                    log.info("Record blob provider: {} does not need to be garbage-collected", providerId);
+                    continue;
+                }
             }
             try {
                 String scrollName = bsbp.getStoreScrollName();

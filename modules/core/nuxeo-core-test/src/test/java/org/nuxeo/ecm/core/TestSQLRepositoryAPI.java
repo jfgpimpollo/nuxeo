@@ -3370,6 +3370,48 @@ public class TestSQLRepositoryAPI {
     }
 
     @Test
+    public void testOrderingAfterMove() {
+        DocumentModel folder = session.createDocumentModel("/", "folder", "Folder");
+        folder = session.createDocument(folder);
+        DocumentModel doc1 = session.createDocumentModel("/folder", "doc1", "File");
+        doc1 = session.createDocument(doc1);
+
+        DocumentModel orderedFolder1 = session.createDocumentModel("/", "orderedFolder1", "OrderedFolder");
+        orderedFolder1 = session.createDocument(orderedFolder1);
+        DocumentModel doc2 = session.createDocumentModel("/orderedFolder1", "doc2", "File");
+        session.createDocument(doc2);
+
+        DocumentModel orderedFolder2 = session.createDocumentModel("/", "orderedFolder2", "OrderedFolder");
+        orderedFolder2 = session.createDocument(orderedFolder2);
+        DocumentModel doc3 = session.createDocumentModel("/orderedFolder2", "doc3", "File");
+        session.createDocument(doc3);
+
+        // move doc1 from an unordered folder to an ordered folder, should be positioned last
+        session.move(doc1.getRef(), orderedFolder1.getRef(), null);
+
+        DocumentModelList children = session.getChildren(folder.getRef());
+        assertTrue(children.isEmpty());
+
+        children = session.getChildren(orderedFolder1.getRef());
+        assertEquals(2, children.size());
+        assertEquals("doc2", children.get(0).getName());
+        assertEquals("doc1", children.get(1).getName());
+
+        // move doc2 and doc1 from an ordered folder to an ordered folder, should be positioned last
+        session.move(doc2.getRef(), orderedFolder2.getRef(), null);
+        session.move(doc1.getRef(), orderedFolder2.getRef(), null);
+
+        children = session.getChildren(orderedFolder1.getRef());
+        assertTrue(children.isEmpty());
+
+        children = session.getChildren(orderedFolder2.getRef());
+        assertEquals(3, children.size());
+        assertEquals("doc3", children.get(0).getName());
+        assertEquals("doc2", children.get(1).getName());
+        assertEquals("doc1", children.get(2).getName());
+    }
+
+    @Test
     public void testPropertyXPath() {
         DocumentModel root = session.getRootDocument();
         DocumentModel parent = session.createDocumentModel(root.getPathAsString(), "theParent", "OrderedFolder");

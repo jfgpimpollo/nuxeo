@@ -98,6 +98,10 @@ public class SAMLProcessorFactory {
 
     protected static final String DIGEST_ALGORITHM = "DigestAlgorithm";
 
+    protected static final String SIGNATURE_MANDATORY = "signatureMandatory";
+
+    protected final boolean signatureMandatory;
+
     /**
      * Message handlers that run on a SAML inbound message, ie: message from IDP.
      */
@@ -114,6 +118,7 @@ public class SAMLProcessorFactory {
     protected final MessageHandler outboundHandlerChain;
 
     public SAMLProcessorFactory(Map<String, String> parameters) {
+        this.signatureMandatory = Boolean.parseBoolean(parameters.getOrDefault(SIGNATURE_MANDATORY, "true"));
         try {
             var idpMetadataResolver = instantiateIdpMetadataResolver(parameters);
             var signingConfiguration = instantiateSigningConfiguration(parameters);
@@ -155,7 +160,7 @@ public class SAMLProcessorFactory {
         return Stream.of(SAMLInboundBinding.values())
                      .filter(b -> b.accept(request))
                      .findFirst()
-                     .map(b -> new InboundProcessor(b, inboundHandlerChain));
+                     .map(b -> new InboundProcessor(b, inboundHandlerChain, signatureMandatory));
     }
 
     public SAMLProcessor retrieveOutboundProcessor(String profileId) {

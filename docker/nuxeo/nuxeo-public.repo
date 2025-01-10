@@ -1,0 +1,7 @@
+[nuxeo-public]
+name=Nexus Public Yum Release Repository
+baseurl=https://packages.nuxeo.com/repository/yum-public/
+enabled=1
+protect=0
+gpgcheck=0
+metadata_expire=30s

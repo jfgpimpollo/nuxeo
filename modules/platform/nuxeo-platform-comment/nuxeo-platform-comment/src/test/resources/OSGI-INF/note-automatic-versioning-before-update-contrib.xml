@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<component name="org.nuxeo.comment.manager.versioning.note-before-update" version="1.0">
+
+  <extension target="org.nuxeo.ecm.core.api.versioning.VersioningService" point="policies">
+    <!-- disable default versioning -->
+    <policy id="note-as-wiki" increment="NONE" order="1000" />
+    <policy id="note-as-wiki-before" increment="MINOR" beforeUpdate="true" order="50">
+      <filter-id>note-filter</filter-id>
+    </policy>
+  </extension>
+
+</component>

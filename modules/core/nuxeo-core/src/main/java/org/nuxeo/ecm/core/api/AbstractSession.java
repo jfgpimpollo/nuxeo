@@ -60,8 +60,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
@@ -381,14 +383,14 @@ public abstract class AbstractSession implements CoreSession, Serializable {
         }
         int type = docRef.type();
         switch (type) {
-        case DocumentRef.ID:
-            return getSession().getDocumentByUUID((String) ref);
-        case DocumentRef.PATH:
-            return getSession().resolvePath((String) ref);
-        case DocumentRef.INSTANCE:
-            return getSession().getDocumentByUUID(((DocumentModel) ref).getId());
-        default:
-            throw new IllegalArgumentException("Invalid type: " + type);
+            case DocumentRef.ID:
+                return getSession().getDocumentByUUID((String) ref);
+            case DocumentRef.PATH:
+                return getSession().resolvePath((String) ref);
+            case DocumentRef.INSTANCE:
+                return getSession().getDocumentByUUID(((DocumentModel) ref).getId());
+            default:
+                throw new IllegalArgumentException("Invalid type: " + type);
         }
     }
 
@@ -579,10 +581,7 @@ public abstract class AbstractSession implements CoreSession, Serializable {
         DocumentModel docModel = readModel(doc);
         options.put(CoreEventConstants.PARENT_PATH, srcDocModel.getParentRef());
         notifyEvent(DocumentEventTypes.DOCUMENT_MOVED, docModel, options, null, comment, true, false);
-        if (dst != null && dstDoc.hasFacet(FacetNames.ORDERABLE)) {
-            // the last shall be last
-            orderBefore(dst, name, null);
-        }
+
         return docModel;
     }
 
@@ -2101,7 +2100,9 @@ public abstract class AbstractSession implements CoreSession, Serializable {
         // find versions
         String versionsQuery = String.format(FIND_VERSIONS_QUERY, docId);
         PartialList<Map<String, Serializable>> res = queryProjection(versionsQuery, 0, 0);
-        List<DocumentRef> versions = res.stream().map(m -> new IdRef((String) m.get(NXQL.ECM_UUID))).collect(Collectors.toList());
+        List<DocumentRef> versions = res.stream()
+                                        .map(m -> new IdRef((String) m.get(NXQL.ECM_UUID)))
+                                        .collect(Collectors.toList());
         if (versions.isEmpty()) {
             log.debug("No orphan version for: {}, there is no version.", docRef);
             return Collections.emptyList();
@@ -2118,7 +2119,9 @@ public abstract class AbstractSession implements CoreSession, Serializable {
         Collection<OrphanVersionRemovalFilter> filters = coreService.getOrphanVersionRemovalFilters();
         if (!filters.isEmpty()) {
             // Hopefully, this OrphanVersionRemovalFilter extension point is rarely used
-            List<String> versionIds = versions.stream().map(ref -> (String) ref.reference()).collect(Collectors.toList());
+            List<String> versionIds = versions.stream()
+                                              .map(ref -> (String) ref.reference())
+                                              .collect(Collectors.toList());
             for (OrphanVersionRemovalFilter filter : filters) {
                 ShallowDocumentModel deleted = new ShallowDocumentModel(docId, getRepositoryName(), "unknown", null,
                         "Unknown", false, false, false, false, Collections.emptyMap(), null, null);
@@ -2971,21 +2974,30 @@ public abstract class AbstractSession implements CoreSession, Serializable {
     @Override
     public DocumentModel getOrCreateDocument(DocumentModel docModel,
             Function<DocumentModel, DocumentModel> postCreate) {
+        DocumentRef parentRef = docModel.getParentRef();
         DocumentRef ref = docModel.getRef();
-        // Check if the document exists
-        if (exists(ref)) {
-            return getDocument(ref);
-        }
-        // handle placeless documents, no locks are needed in this case
-        if (docModel.getParentRef() == null) {
-            return postCreate.apply(createDocument(docModel));
-        }
-        String key = computeKeyForAtomicCreation(docModel);
-        return LockHelper.doAtomically(key, () -> {
-            if (exists(ref)) {
-                return getDocument(ref);
+        Supplier<Optional<DocumentModel>> resolveDoc = () -> {
+            if (parentRef == null && exists(ref)) {
+                return Optional.of(getDocument(ref));
+            } else if (parentRef != null) {
+                Document parentDocument = resolveReference(parentRef);
+                if (parentDocument.hasChild(docModel.getName())) {
+                    Document childDoc = parentDocument.getChild(docModel.getName());
+                    checkPermission(childDoc, READ);
+                    return Optional.of(readModel(childDoc));
+                }
             }
-            return postCreate.apply(createDocument(docModel));
+            return Optional.empty();
+        };
+        // Check if the document exists
+        return resolveDoc.get().orElseGet(() -> {
+            // handle placeless documents, no locks are needed in this case
+            if (parentRef == null) {
+                return postCreate.apply(createDocument(docModel));
+            }
+            String key = computeKeyForAtomicCreation(docModel);
+            return LockHelper.doAtomically(key,
+                    () -> resolveDoc.get().orElseGet(() -> postCreate.apply(createDocument(docModel))));
         });
     }
 

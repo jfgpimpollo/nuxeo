@@ -1,5 +1,5 @@
 /*
- * (C) Copyright 2017 Nuxeo (http://nuxeo.com/) and others.
+ * (C) Copyright 2017-2024 Nuxeo (http://nuxeo.com/) and others.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,16 +15,13 @@
  *
  * Contributors:
  *     Funsho David
- *
  */
-
 package org.nuxeo.directory.test;
 
 import org.nuxeo.ecm.core.test.StorageConfiguration;
 import org.nuxeo.runtime.test.runner.FeaturesRunner;
 import org.nuxeo.runtime.test.runner.RuntimeFeature;
 import org.nuxeo.runtime.test.runner.RuntimeHarness;
-
 
 /**
  * Description of the specific capabilities of a directory for tests, and helper methods.
@@ -39,9 +36,9 @@ public class DirectoryConfiguration {
 
     public static final String DIRECTORY_MONGODB = "mongodb";
 
-    public static final String SQL_TEMPLATE_CONTRIB = "OSGI-INF/test-directory-sql-contrib.xml";
+    public static final String SQL_TEMPLATE_CONTRIB = "OSGI-INF/directory-test-sql-contrib.xml";
 
-    public static final String MONGODB_TEMPLATE_CONTRIB = "OSGI-INF/test-directory-mongodb-contrib.xml";
+    public static final String MONGODB_TEMPLATE_CONTRIB = "OSGI-INF/directory-test-mongodb-contrib.xml";
 
     protected String directoryType;
 
@@ -54,22 +51,15 @@ public class DirectoryConfiguration {
     }
 
     public void deployContrib(FeaturesRunner runner) throws Exception {
-        String contribName;
-        switch (directoryType) {
-        case DIRECTORY_SQL:
-            contribName = SQL_TEMPLATE_CONTRIB;
-            break;
-        case DIRECTORY_MONGODB:
-            contribName = MONGODB_TEMPLATE_CONTRIB;
-            break;
-        default:
+        String contribName = switch (directoryType) {
+            case DIRECTORY_SQL -> SQL_TEMPLATE_CONTRIB;
+            case DIRECTORY_MONGODB -> MONGODB_TEMPLATE_CONTRIB;
             // Fallback on SQL template directory by default if directoryType unknown
-            contribName = SQL_TEMPLATE_CONTRIB;
-            break;
-        }
+            default -> SQL_TEMPLATE_CONTRIB;
+        };
 
         RuntimeHarness harness = runner.getFeature(RuntimeFeature.class).getHarness();
-        harness.deployContrib("org.nuxeo.ecm.directory.tests", contribName);
+        harness.deployContrib("org.nuxeo.directory.test", contribName);
     }
 
     public void init() {

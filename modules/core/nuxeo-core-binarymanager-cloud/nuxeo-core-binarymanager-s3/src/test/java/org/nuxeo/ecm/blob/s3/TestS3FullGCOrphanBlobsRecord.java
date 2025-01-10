@@ -20,7 +20,9 @@ package org.nuxeo.ecm.blob.s3;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.nuxeo.ecm.core.action.GarbageCollectOrphanBlobsAction.RECORDS_PARAM;
 import static org.nuxeo.ecm.core.action.GarbageCollectOrphanBlobsAction.RESULT_DELETED_SIZE_KEY;
 import static org.nuxeo.ecm.core.action.GarbageCollectOrphanBlobsAction.RESULT_TOTAL_SIZE_KEY;
 import static org.nuxeo.ecm.core.bulk.message.BulkStatus.State.COMPLETED;
@@ -67,7 +69,7 @@ public class TestS3FullGCOrphanBlobsRecord extends AbstractTestFullGCOrphanBlobs
         // blob versioning is enabled and blob key has the ${docId}@{versionId} pattern
         assertTrue(blobKey.startsWith(blobProvider.blobProviderId + ":" + doc.getId() + KeyStrategy.VER_SEP));
 
-        BulkStatus status = triggerAndWaitGC(false);
+        BulkStatus status = triggerAndWaitGC(RECORDS_PARAM);
         assertNotNull(status);
         assertEquals(COMPLETED, status.getState());
         assertEquals(false, status.hasError());
@@ -81,6 +83,21 @@ public class TestS3FullGCOrphanBlobsRecord extends AbstractTestFullGCOrphanBlobs
         assertEquals(1, status.getSkipCount());
         assertEquals(0, ((Number) status.getResult().get(RESULT_DELETED_SIZE_KEY)).longValue());
         assertEquals(sizeOfBinaries, ((Number) status.getResult().get(RESULT_TOTAL_SIZE_KEY)).longValue());
+    }
+
+    @Test
+    public void testGCBlobsActionSkipRecords() {
+        BulkStatus status = triggerAndWaitGC();
+        assertNotNull(status);
+        assertEquals(COMPLETED, status.getState());
+        assertEquals(false, status.hasError());
+
+        assertEquals(0, status.getProcessed());
+        assertEquals(0, status.getErrorCount());
+        assertEquals(0, status.getTotal());
+        assertEquals(0, status.getSkipCount());
+        assertNull(status.getResult().get(RESULT_DELETED_SIZE_KEY));
+        assertNull(status.getResult().get(RESULT_TOTAL_SIZE_KEY));
     }
 
 }

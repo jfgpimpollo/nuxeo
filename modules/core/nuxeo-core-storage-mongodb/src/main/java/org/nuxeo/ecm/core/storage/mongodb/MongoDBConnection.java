@@ -21,6 +21,7 @@ package org.nuxeo.ecm.core.storage.mongodb;
 import static com.mongodb.ErrorCategory.DUPLICATE_KEY;
 import static com.mongodb.ErrorCategory.fromErrorCode;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static org.nuxeo.common.utils.RetryUtils.exponentialBackoff;
 import static org.nuxeo.ecm.core.storage.dbs.DBSDocument.KEY_ACE_GRANT;
 import static org.nuxeo.ecm.core.storage.dbs.DBSDocument.KEY_ACE_STATUS;
 import static org.nuxeo.ecm.core.storage.dbs.DBSDocument.KEY_ACE_USER;
@@ -60,6 +61,7 @@ import static org.nuxeo.ecm.core.storage.mongodb.MongoDBRepository.ZERO;
 
 import java.io.Serializable;
 import java.security.SecureRandom;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
@@ -382,25 +384,19 @@ public class MongoDBConnection extends DBSConnectionBase {
         }
     }
 
-    protected static final int NB_TRY = 15;
+    protected static final int TRY_COUNT = 15;
+
+    protected static final Duration RETRY_TIMESLOT = Duration.ofMillis(1);
+
+    protected static final Duration RETRY_THRESHOLD = Duration.ofMillis(250);
 
     protected long updateRandomizedSequence() {
-        long sleepDuration = 1; // start with 1ms
-        for (int i = 0; i < NB_TRY; i++) {
-            Long value = tryUpdateRandomizedSequence();
-            if (value != null) {
-                return value.longValue();
-            }
-            try {
-                Thread.sleep(sleepDuration);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new NuxeoException();
-            }
-            sleepDuration *= 2; // exponential backoff
-            sleepDuration += System.nanoTime() % 4; // random jitter
+        try {
+            return exponentialBackoff(this::tryUpdateRandomizedSequence, TRY_COUNT, RETRY_TIMESLOT,
+                    RETRY_THRESHOLD).longValue();
+        } catch (RuntimeException e) {
+            throw new ConcurrentUpdateException("Failed to update randomized sequence", e);
         }
-        throw new ConcurrentUpdateException("Failed to update randomized sequence");
     }
 
     /** Initial seed generation. */
@@ -653,14 +649,14 @@ public class MongoDBConnection extends DBSConnectionBase {
             Object value2, Set<String> ignored) {
         Map<String, Object> comparatorAndValue;
         switch (operator) {
-        case IN:
-            comparatorAndValue = Map.of(MongoDBOperators.IN, value2);
-            break;
-        case NOT_IN:
-            comparatorAndValue = Map.of(MongoDBOperators.NIN, value2);
-            break;
-        default:
-            throw new IllegalArgumentException(String.format("Unknown operator: %s", operator));
+            case IN:
+                comparatorAndValue = Map.of(MongoDBOperators.IN, value2);
+                break;
+            case NOT_IN:
+                comparatorAndValue = Map.of(MongoDBOperators.NIN, value2);
+                break;
+            default:
+                throw new IllegalArgumentException(String.format("Unknown operator: %s", operator));
         }
         Document filter = new Document();
         converter.putToBson(filter, key1, value1);

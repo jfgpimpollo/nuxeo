@@ -52,6 +52,11 @@ public class GarbageCollectOrphanBlobsAction implements StreamProcessorTopology 
 
     public static final String DRY_RUN_PARAM = "dryRun";
 
+    /**
+     * @since 2025.0
+     */
+    public static final String RECORDS_PARAM = "records";
+
     public static final String RESULT_DELETED_SIZE_KEY = "deletedSize";
 
     public static final String RESULT_TOTAL_SIZE_KEY = "totalSize";
@@ -125,9 +130,8 @@ public class GarbageCollectOrphanBlobsAction implements StreamProcessorTopology 
                                     () -> deleted ? "would have deleted" : "has kept", () -> key,
                                     () -> FileUtils.byteCountToDisplaySize(size));
                         } else {
-                            log.warn("Sample: GC has {} blob: {} of size {}.",
-                                    () -> deleted ? "deleted" : "kept", () -> key,
-                                    () -> FileUtils.byteCountToDisplaySize(size));
+                            log.warn("Sample: GC has {} blob: {} of size {}.", () -> deleted ? "deleted" : "kept",
+                                    () -> key, () -> FileUtils.byteCountToDisplaySize(size));
                         }
                     }
                     log.trace("CommandId: {} Blob: {} of size: {} from repository: {} deleted: {} dryRun: {}",

@@ -261,6 +261,27 @@ public class TestTreeCommentManager extends AbstractTestCommentManager {
         assertTrue(session.getVersions(commentedDocModel.getRef()).isEmpty());
     }
 
+    // NXP-32876
+    @Test
+    @Deploy("org.nuxeo.ecm.platform.comment.tests:OSGI-INF/note-automatic-versioning-before-update-contrib.xml")
+    public void _testRelatedTextDoesNotTriggerBeforeUpdateAutomaticVersioning() {
+        var note = session.createDocumentModel("/domain", "note001", "Note");
+        note = session.createDocument(note);
+        assertTrue("Note is not checked out", note.isCheckedOut());
+        assertEquals("0.0", note.getVersionLabel());
+        // make a modification to trigger automatic versioning
+        note.setPropertyValue("note:note", "A wonderful content");
+        note = session.saveDocument(note);
+        assertTrue("Note is not checked out", note.isCheckedOut());
+        assertEquals("0.1+", note.getVersionLabel());
+        // add a comment on the note
+        commentManager.createComment(session, newComment(note.getId()));
+        // assert that the note has not been versioned again
+        note.refresh();
+        assertTrue("Note is not checked out", note.isCheckedOut());
+        assertEquals("0.1+", note.getVersionLabel());
+    }
+
     @Test
     public void _testCommentTextAreStoredInCommentedFileFullTextSearch() {
         assumeTrue("fulltext search not supported", coreFeature.getStorageConfiguration().supportsFulltextSearch());

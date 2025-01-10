@@ -4,7 +4,8 @@
 #
 # It uses a multi-stage build to copy and unzip the Nuxeo server ZIP file.
 
-ARG ROCKY_LINUX_VERSION=9
+ARG EL_VERSION=9
+ARG ORACLE_LINUX_TAG=$EL_VERSION-slim
 
 # ------------------------------------------------------------------------
 # Build stage
@@ -35,13 +36,13 @@ RUN mkdir -p /tmp/nuxeo-distribution \
 
 # ------------------------------------------------------------------------
 # Target stage
-FROM rockylinux:$ROCKY_LINUX_VERSION
+FROM oraclelinux:$ORACLE_LINUX_TAG
 
 ARG BUILD_TAG
 ARG SCM_REF
 ARG VERSION
 
-ARG ROCKY_LINUX_VERSION=9
+ARG EL_VERSION=9
 ARG LIBREOFFICE_VERSION=7.5.8
 ARG TARGETPLATFORM
 
@@ -63,41 +64,41 @@ RUN rpm --import http://repos.azulsystems.com/RPM-GPG-KEY-azulsystems \
   && rpm --install https://cdn.azul.com/zulu/bin/zulu-repo-1.0.0-1.noarch.rpm
 
 # Install required software
-RUN dnf -y update \
-  && dnf -y --setopt=skip_missing_names_on_install=False install \
-    epel-release \
-    # Install java first to provide it for depend packages (such as libreoffice)
-    zulu17-jdk \
-    # Find is not included in the base rockylinux image
+# Mount nuxeo-public as secret even if it is not secret in order to not leave the file in the image
+RUN --mount=type=secret,id=nuxeo-public,target=/etc/yum.repos.d/nuxeo-public.repo \
+  microdnf -y update \
+  # Required by Remi's RPM repository, also, it provides dnf
+  && microdnf -y install epel-release \
+  && dnf -y install \
+    # find is not included in the oraclelinux slim base image
     findutils \
     ghostscript \
     glibc-langpack-en \
-    # Install gzip first to allow using tar
-    gzip \
+    # Add CJK fonts
+    google-noto-cjk-fonts-common \
+    # Provided by yum-public from packages.nuxeo.com
+    libwpd-tools \
+    # Required by ExifTool to extract binary metadata from LibreOffice documents
+    perl-Archive-Zip \
+    perl-Image-ExifTool \
+    poppler-utils \
+    # ps is not included in the base oraclelinux image
+    procps \
+    unzip \
+    wget \
+    # Install Java before LibreOffice that depends on it
+    zulu17-jdk \
   # Install LibreOffice, only for amd64 since not available for arm64
   && if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
        curl -f -L https://packages.nuxeo.com/repository/document-foundation-raw/LibreOffice_${LIBREOFFICE_VERSION}_Linux_x86-64_rpm.tar.gz | tar -C /tmp -xzv \
-       && dnf -y localinstall /tmp/LibreOffice_${LIBREOFFICE_VERSION}*/RPMS/*.rpm \
+       && dnf -y install /tmp/LibreOffice_${LIBREOFFICE_VERSION}*/RPMS/*.rpm \
        && ln -s /opt/libreoffice$(echo $LIBREOFFICE_VERSION | cut -f 1,2 -d ".")/program/soffice /usr/bin/soffice \
        && ln -s /opt/libreoffice$(echo $LIBREOFFICE_VERSION | cut -f 1,2 -d ".")/program/soffice /usr/bin/libreoffice \
        && rm -rf /tmp/LibreOffice_${LIBREOFFICE_VERSION}* ; \
      fi \
-  # ImageMagick 7 for Rocky Linux 9 is only provided by a third party repo
-  && dnf -y install https://rpms.remirepo.net/enterprise/remi-release-$ROCKY_LINUX_VERSION.rpm \
+  # ImageMagick 7 for Oracle Linux 9 is only provided by Remi's RPM repository
+  && dnf -y install https://rpms.remirepo.net/enterprise/remi-release-${EL_VERSION}.rpm \
   && dnf -y --enablerepo=remi install ImageMagick7 \
-  # devel repository required for some packages such as libwpd-tools
-  && dnf -y --setopt=skip_missing_names_on_install=False --enablerepo=devel install \
-    libwpd-tools \
-    # Required by exiftool to extract binary metadata from open office document
-    perl-Archive-Zip \
-    perl-Image-ExifTool \
-    poppler-utils \
-    # ps is not included in the base rockylinux image
-    procps \
-    unzip \
-    wget \
-    # Add CJK fonts
-    google-noto-cjk-fonts-common \
   && dnf clean all
 
 # Remove perl-Net-SSLeay example private key

@@ -345,46 +345,46 @@ public class PersistenceContext {
             RowId rowId = en.getKey();
             Fragment fragment = en.getValue();
             switch (fragment.getState()) {
-            case CREATED:
-                batch.creates.add(fragment.row);
-                fragment.clearDirty();
-                fragment.setPristine();
-                // modified map cleared at end of loop
-                pristine.put(rowId, fragment);
-                break;
-            case MODIFIED:
-                RowUpdate rowu = fragment.getRowUpdate();
-                if (rowu != null) {
-                    if (Model.HIER_TABLE_NAME.equals(fragment.row.tableName)) {
-                        Map<String, Serializable> conditions = rowUpdateConditions.get(fragment.getId());
-                        if (conditions != null) {
-                            rowu.setConditions(conditions);
+                case CREATED:
+                    batch.creates.add(fragment.row);
+                    fragment.clearDirty();
+                    fragment.setPristine();
+                    // modified map cleared at end of loop
+                    pristine.put(rowId, fragment);
+                    break;
+                case MODIFIED:
+                    RowUpdate rowu = fragment.getRowUpdate();
+                    if (rowu != null) {
+                        if (Model.HIER_TABLE_NAME.equals(fragment.row.tableName)) {
+                            Map<String, Serializable> conditions = rowUpdateConditions.get(fragment.getId());
+                            if (conditions != null) {
+                                rowu.setConditions(conditions);
+                            }
                         }
+                        batch.updates.add(rowu);
+                        fragmentsToClearDirty.add(fragment);
                     }
-                    batch.updates.add(rowu);
-                    fragmentsToClearDirty.add(fragment);
-                }
-                fragment.setPristine();
-                // modified map cleared at end of loop
-                pristine.put(rowId, fragment);
-                break;
-            case DELETED:
-                // TODO deleting non-hierarchy fragments is done by the database
-                // itself as their foreign key to hierarchy is ON DELETE CASCADE
-                batch.deletes.add(new RowId(rowId));
-                fragment.setDetached();
-                // modified map cleared at end of loop
-                break;
-            case DELETED_DEPENDENT:
-                batch.deletesDependent.add(new RowId(rowId));
-                fragment.setDetached();
-                break;
-            case PRISTINE:
-                // cannot happen, but has been observed :(
-                log.error("Found PRISTINE fragment in modified map: {}", fragment);
-                break;
-            default:
-                throw new RuntimeException(fragment.toString());
+                    fragment.setPristine();
+                    // modified map cleared at end of loop
+                    pristine.put(rowId, fragment);
+                    break;
+                case DELETED:
+                    // TODO deleting non-hierarchy fragments is done by the database
+                    // itself as their foreign key to hierarchy is ON DELETE CASCADE
+                    batch.deletes.add(new RowId(rowId));
+                    fragment.setDetached();
+                    // modified map cleared at end of loop
+                    break;
+                case DELETED_DEPENDENT:
+                    batch.deletesDependent.add(new RowId(rowId));
+                    fragment.setDetached();
+                    break;
+                case PRISTINE:
+                    // cannot happen, but has been observed :(
+                    log.error("Found PRISTINE fragment in modified map: {}", fragment);
+                    break;
+                default:
+                    throw new RuntimeException(fragment.toString());
             }
         }
         modified.clear();
@@ -441,21 +441,21 @@ public class PersistenceContext {
             Serializable docId = getContainingDocument(fragment.getId());
             boolean complexProp = !fragment.getId().equals(docId);
             switch (fragment.getState()) {
-            case MODIFIED:
-                modifiedDocIds.add(docId);
-                break;
-            case CREATED:
-                modifiedDocIds.add(docId);
-                break;
-            case DELETED:
-            case DELETED_DEPENDENT:
-                if (complexProp) {
+                case MODIFIED:
                     modifiedDocIds.add(docId);
-                } else if (Model.HIER_TABLE_NAME.equals(fragment.row.tableName)) {
-                    deletedDocIds.add(docId);
-                }
-                break;
-            default:
+                    break;
+                case CREATED:
+                    modifiedDocIds.add(docId);
+                    break;
+                case DELETED:
+                case DELETED_DEPENDENT:
+                    if (complexProp) {
+                        modifiedDocIds.add(docId);
+                    } else if (Model.HIER_TABLE_NAME.equals(fragment.row.tableName)) {
+                        deletedDocIds.add(docId);
+                    }
+                    break;
+                default:
             }
         }
         modifiedDocIds.removeAll(deletedDocIds);
@@ -477,47 +477,47 @@ public class PersistenceContext {
             String tableName = fragment.row.tableName;
             State state = fragment.getState();
             switch (state) {
-            case DELETED:
-            case DELETED_DEPENDENT:
-                if (Model.HIER_TABLE_NAME.equals(tableName) && fragment.getId().equals(docId)) {
-                    // deleting the document, record this
-                    deleted.add(docId);
-                }
-                if (isDeleted(docId)) {
-                    break;
-                }
-                // this is a deleted fragment of a complex property
-                // from a document that has not been completely deleted
-                // $FALL-THROUGH$
-            case CREATED:
-                PropertyType t = model.getFulltextInfoForFragment(tableName);
-                if (t == null) {
-                    break;
-                }
-                if (t == PropertyType.STRING || t == PropertyType.BOOLEAN) {
-                    dirtyStrings.add(docId);
-                }
-                if (t == PropertyType.BINARY || t == PropertyType.BOOLEAN) {
-                    dirtyBinaries.add(docId);
-                }
-                break;
-            case MODIFIED:
-                Collection<String> keys;
-                if (model.isCollectionFragment(tableName)) {
-                    keys = Collections.singleton(null);
-                } else {
-                    keys = ((SimpleFragment) fragment).getDirtyKeys();
-                }
-                for (String key : keys) {
-                    PropertyType type = model.getFulltextFieldType(tableName, key);
-                    if (type == PropertyType.STRING || type == PropertyType.ARRAY_STRING) {
+                case DELETED:
+                case DELETED_DEPENDENT:
+                    if (Model.HIER_TABLE_NAME.equals(tableName) && fragment.getId().equals(docId)) {
+                        // deleting the document, record this
+                        deleted.add(docId);
+                    }
+                    if (isDeleted(docId)) {
+                        break;
+                    }
+                    // this is a deleted fragment of a complex property
+                    // from a document that has not been completely deleted
+                    // $FALL-THROUGH$
+                case CREATED:
+                    PropertyType t = model.getFulltextInfoForFragment(tableName);
+                    if (t == null) {
+                        break;
+                    }
+                    if (t == PropertyType.STRING || t == PropertyType.BOOLEAN) {
                         dirtyStrings.add(docId);
-                    } else if (type == PropertyType.BINARY || type == PropertyType.ARRAY_BINARY) {
+                    }
+                    if (t == PropertyType.BINARY || t == PropertyType.BOOLEAN) {
                         dirtyBinaries.add(docId);
                     }
-                }
-                break;
-            default:
+                    break;
+                case MODIFIED:
+                    Collection<String> keys;
+                    if (model.isCollectionFragment(tableName)) {
+                        keys = Collections.singleton(null);
+                    } else {
+                        keys = ((SimpleFragment) fragment).getDirtyKeys();
+                    }
+                    for (String key : keys) {
+                        PropertyType type = model.getFulltextFieldType(tableName, key);
+                        if (type == PropertyType.STRING || type == PropertyType.ARRAY_STRING) {
+                            dirtyStrings.add(docId);
+                        } else if (type == PropertyType.BINARY || type == PropertyType.ARRAY_BINARY) {
+                            dirtyBinaries.add(docId);
+                        }
+                    }
+                    break;
+                default:
             }
         }
         dirtyStrings.removeAll(deleted);
@@ -1064,25 +1064,25 @@ public class PersistenceContext {
     public void removeFragment(Fragment fragment, boolean primary) {
         RowId rowId = fragment.row;
         switch (fragment.getState()) {
-        case ABSENT:
-        case INVALIDATED_DELETED:
-            pristine.remove(rowId);
-            break;
-        case CREATED:
-            modified.remove(rowId);
-            break;
-        case PRISTINE:
-        case INVALIDATED_MODIFIED:
-            pristine.remove(rowId);
-            modified.put(rowId, fragment);
-            break;
-        case MODIFIED:
-            // already in modified
-            break;
-        case DETACHED:
-        case DELETED:
-        case DELETED_DEPENDENT:
-            break;
+            case ABSENT:
+            case INVALIDATED_DELETED:
+                pristine.remove(rowId);
+                break;
+            case CREATED:
+                modified.remove(rowId);
+                break;
+            case PRISTINE:
+            case INVALIDATED_MODIFIED:
+                pristine.remove(rowId);
+                modified.put(rowId, fragment);
+                break;
+            case MODIFIED:
+                // already in modified
+                break;
+            case DETACHED:
+            case DELETED:
+            case DELETED_DEPENDENT:
+                break;
         }
         fragment.setDeleted(primary);
     }
@@ -1098,22 +1098,22 @@ public class PersistenceContext {
             return;
         }
         switch (fragment.getState()) {
-        case ABSENT:
-        case PRISTINE:
-        case INVALIDATED_MODIFIED:
-        case INVALIDATED_DELETED:
-            pristine.remove(rowId);
-            break;
-        case CREATED:
-        case MODIFIED:
-        case DELETED:
-        case DELETED_DEPENDENT:
-            // should not happen
-            log.error("Removed fragment is in invalid state: {}", fragment);
-            modified.remove(rowId);
-            break;
-        case DETACHED:
-            break;
+            case ABSENT:
+            case PRISTINE:
+            case INVALIDATED_MODIFIED:
+            case INVALIDATED_DELETED:
+                pristine.remove(rowId);
+                break;
+            case CREATED:
+            case MODIFIED:
+            case DELETED:
+            case DELETED_DEPENDENT:
+                // should not happen
+                log.error("Removed fragment is in invalid state: {}", fragment);
+                modified.remove(rowId);
+                break;
+            case DETACHED:
+                break;
         }
         fragment.setDetached();
     }
@@ -1474,6 +1474,9 @@ public class PersistenceContext {
         getHierSelectionContext(complexProp).recordRemoved(hierFragment);
         hierFragment.put(Model.HIER_PARENT_KEY, parentId);
         getHierSelectionContext(complexProp).recordExisting(hierFragment, true);
+        // pos fixup
+        Long pos = getNextPos(parentId, false);
+        hierFragment.put(Model.HIER_CHILD_POS_KEY, pos);
         // path invalidated
         source.path = null;
     }

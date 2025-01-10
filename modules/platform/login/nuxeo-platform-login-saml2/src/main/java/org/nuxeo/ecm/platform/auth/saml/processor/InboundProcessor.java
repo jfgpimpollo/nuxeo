@@ -33,6 +33,7 @@ import org.opensaml.messaging.handler.MessageHandler;
 import org.opensaml.profile.action.ProfileAction;
 import org.opensaml.profile.context.PreviousEventContext;
 import org.opensaml.profile.context.ProfileRequestContext;
+import org.opensaml.saml.common.messaging.context.SAMLMetadataContext;
 import org.opensaml.saml.common.messaging.context.SAMLPeerEntityContext;
 import org.opensaml.saml.common.messaging.context.navigate.SAMLEntityIDFunction;
 import org.opensaml.saml.saml2.assertion.SAML20AssertionValidator;
@@ -46,6 +47,7 @@ import org.opensaml.saml.saml2.profile.impl.DecryptAttributes;
 import org.opensaml.saml.saml2.profile.impl.DefaultAssertionValidationContextBuilder;
 import org.opensaml.saml.saml2.profile.impl.ValidateAssertions;
 import org.opensaml.saml.security.impl.SAMLSignatureProfileValidator;
+import org.opensaml.security.credential.UsageType;
 import org.opensaml.xmlsec.context.SecurityParametersContext;
 
 import net.shibboleth.utilities.java.support.net.HttpServletRequestResponseContext;
@@ -59,9 +61,13 @@ public class InboundProcessor extends AbstractSAMLProcessor {
 
     protected final MessageHandler inboundHandler;
 
-    public InboundProcessor(SAMLInboundBinding inboundBinding, MessageHandler inboundHandler) {
+    protected final boolean signatureMandatory;
+
+    public InboundProcessor(SAMLInboundBinding inboundBinding, MessageHandler inboundHandler,
+            boolean signatureMandatory) {
         this.inboundBinding = inboundBinding;
         this.inboundHandler = inboundHandler;
+        this.signatureMandatory = signatureMandatory;
     }
 
     @Override
@@ -94,7 +100,17 @@ public class InboundProcessor extends AbstractSAMLProcessor {
         });
         var validationContextBuilder = new DefaultAssertionValidationContextBuilder();
         validationContextBuilder.setCheckAddress(prc -> false);
-        validationContextBuilder.setSignatureRequired(prc -> false);
+        validationContextBuilder.setSignatureRequired(prc -> {
+            var peerEntityContext = prc.getInboundMessageContext().getSubcontext(SAMLPeerEntityContext.class);
+            // authenticated field is filled by the response signature validation, in such case don't require assertion
+            // signature, nevertheless validate the signature if present in assertion
+            return signatureMandatory && !peerEntityContext.isAuthenticated()
+                    && peerEntityContext.getSubcontext(SAMLMetadataContext.class)
+                                        .getRoleDescriptor()
+                                        .getKeyDescriptors()
+                                        .stream()
+                                        .anyMatch(keyDescriptor -> keyDescriptor.getUse() == UsageType.SIGNING);
+        });
         validationContextBuilder.setInResponseToRequired(prc -> false);
         // we don't handle the inResponse attribute for now, set it to the one present in the response to allow
         // validation
