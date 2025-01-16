@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+envsubst < /etc/nuxeo/nuxeo.conf.template > /etc/nuxeo/nuxeo.conf
+
 # expand filename patterns which match no files to a null string, rather than themselves
 shopt -s nullglob
 

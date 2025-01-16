@@ -70,7 +70,7 @@
                   </platforms>
                   <secret>
                     <files>
-                      <nuxeo-public>nuxeo-public.repo</nuxeo-public>
+                      <nuxeo-public>${project.basedir}/nuxeo-public.repo</nuxeo-public>
                     </files>
                   </secret>
                 </buildx>

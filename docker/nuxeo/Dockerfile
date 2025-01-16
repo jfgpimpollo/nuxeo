@@ -4,8 +4,8 @@
 #
 # It uses a multi-stage build to copy and unzip the Nuxeo server ZIP file.
 
-ARG EL_VERSION=9
-ARG ORACLE_LINUX_TAG=$EL_VERSION-slim
+#ARG EL_VERSION=9
+#ARG ORACLE_LINUX_TAG=$EL_VERSION-slim
 
 # ------------------------------------------------------------------------
 # Build stage
@@ -36,7 +36,7 @@ RUN mkdir -p /tmp/nuxeo-distribution \
 
 # ------------------------------------------------------------------------
 # Target stage
-FROM oraclelinux:$ORACLE_LINUX_TAG
+FROM oraclelinux:9-slim
 
 ARG BUILD_TAG
 ARG SCM_REF
@@ -99,6 +99,7 @@ RUN --mount=type=secret,id=nuxeo-public,target=/etc/yum.repos.d/nuxeo-public.rep
   # ImageMagick 7 for Oracle Linux 9 is only provided by Remi's RPM repository
   && dnf -y install https://rpms.remirepo.net/enterprise/remi-release-${EL_VERSION}.rpm \
   && dnf -y --enablerepo=remi install ImageMagick7 \
+  && dnf -y install gettext \
   && dnf clean all
 
 # Remove perl-Net-SSLeay example private key
@@ -135,16 +136,37 @@ VOLUME /var/lib/nuxeo
 VOLUME /var/log/nuxeo
 VOLUME /tmp
 
-COPY nuxeo-web-ui-marketplace-3.1.13-SNAPSHOT.zip /tmp/nuxeo-web-ui-marketplace-3.1.13-SNAPSHOT.zip
+COPY nuxeo-web-ui-marketplace-3.1.16-SNAPSHOT.zip /tmp/nuxeo-web-ui-marketplace-3.1.16-SNAPSHOT.zip
 COPY nuxeo-keycloak-package-2023.14-SNAPSHOT.zip /tmp/nuxeo-keycloak-package-2023.14-SNAPSHOT.zip
 COPY onlyoffice-nuxeo-package-2.1.0.zip /tmp/onlyoffice-nuxeo-package-2.1.0.zip
 COPY docker-entrypoint.sh /
-COPY --chown=900:0 nuxeo.conf /etc/nuxeo/nuxeo.conf
+COPY --chown=900:0 nuxeo.conf /etc/nuxeo/nuxeo.conf.template
 COPY mysql-connector-j-8.4.0.jar $NUXEO_HOME/lib/mysql-connector-j-8.4.0.jar
+COPY mariadb-java-client-3.5.1.jar $NUXEO_HOME/lib/mariadb-java-client-3.5.1.jar
+COPY postgresql-42.7.5.jar $NUXEO_HOME/lib/postgresql-42.7.5.jar
 
-ENV ADMINISTRATORS_MAPPING_PLATFORM_ROLES=ROLE_ADMINISTRATOR,ROLE_PLATFORM_ADMIN
-ENV MEMBERS_MAPPING_PLATFORM_ROLES=ROLE_DATASCIENTIST,ROLE_DATAVIEWER,ROLE_DEVELOPER,ROLE_PARTNER,ROLE_USE
 
+ENV NUXEO_URL=https://development.onesaitplatform.com/nuxeo \
+    NUXEO_KEYCLOAK_REALM=onesaitplatform \
+    NUXEO_KEYCLOAK_AUTHSERVERURL=http://development.onesaitplatform.com/auth \
+    NUXEO_KEYCLOAK_RESOURCE=onesaitplatform \
+    NUXEO_KEYCLOAK_PUBLICCLIENT=false \
+    NUXEO_KEYCLOAK_CREDENTIALS_SECRET=onesaitplatform \
+    NUXEO_KEYCLOAK_USERESOURCEROLEMAPPINGS=true \
+    NUXEO_DB_NAME=onesaitplatform_nuxeo \
+    NUXEO_DB_USER=root \
+    NUXEO_DB_PASSWORD=changeIt! \
+    NUXEO_DB_HOST=configdb \
+    NUXEO_DB_PORT=3306 \
+    NUXEO_DB_JDBC_URL=jdbc:mysql://configdb:3306/onesaitplatform_nuxeo?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=UTF-8&allowMultiQueries=true&useSSL=false&autoReconnect=true \
+    NUXEO_DB_DRIVER=com.mysql.cj.jdbc.Driver \
+    NUXEO_DB_MIN_POOL_SIZE=3 \
+    NUXEO_DB_MAX_POOL_SIZE=30 \
+    NUXEO_VCS_MIN_POOL_SIZE=3 \
+    NUXEO_VCS_MAX_POOL_SIZE=20 \
+    NUXEO_PACKAGES="/tmp/nuxeo-web-ui-marketplace-3.1.16-SNAPSHOT.zip /tmp/nuxeo-keycloak-package-2023.14-SNAPSHOT.zip" \
+    ADMINISTRATORS_MAPPING_PLATFORM_ROLES=ROLE_ADMINISTRATOR,ROLE_PLATFORM_ADMIN \
+    MEMBERS_MAPPING_PLATFORM_ROLES=ROLE_DATASCIENTIST,ROLE_DATAVIEWER,ROLE_DEVELOPER,ROLE_PARTNER,ROLE_USE
 
 
 EXPOSE 8080

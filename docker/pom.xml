@@ -20,7 +20,7 @@
 
   <modules>
     <module>nuxeo</module>
-    <module>nuxeo-benchmark</module>
+    <!--module>nuxeo-benchmark</module-->
   </modules>
 
   <profiles>
